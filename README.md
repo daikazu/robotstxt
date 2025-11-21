@@ -38,6 +38,29 @@ You can publish the config file with:
 php artisan vendor:publish --tag="robotstxt-config"
 ```
 
+### Nginx Configuration (Required for Production)
+
+If you're getting a 404 status (but still seeing content), you need to configure Nginx to pass robots.txt requests to Laravel:
+
+**For Laravel Herd:**
+Add this to your site's Nginx config (via Herd UI or `~/.config/herd/Nginx/[site].conf`):
+
+```nginx
+location = /robots.txt {
+      try_files $uri /index.php?$query_string;
+      access_log off;
+      log_not_found off;
+  }
+```
+
+**For Laravel Forge/Vapor:**
+Add the same location block to your Nginx configuration.
+
+**For custom servers:**
+Add to your server block in your Nginx config file.
+
+Then restart Nginx/Herd.
+
 ## Usage
 
 After installation, the package automatically registers a route at `/robots.txt` that serves your dynamically generated robots.txt file.
