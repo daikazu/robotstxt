@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Daikazu\Robotstxt;
 
 use Daikazu\Robotstxt\Commands\GenerateCommand;
+use Daikazu\Robotstxt\Commands\InstallCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -21,6 +22,7 @@ class RobotsTxtServiceProvider extends PackageServiceProvider
             ->name('robotstxt')
             ->hasRoute('web')
             ->hasConfigFile()
-            ->hasCommand(GenerateCommand::class);
+            ->hasCommand(GenerateCommand::class)
+            ->hasCommand(InstallCommand::class);
     }
 }
