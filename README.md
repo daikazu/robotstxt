@@ -27,43 +27,50 @@ Perfect for applications that need different robots.txt rules across environment
 
 ## Installation
 
-You can install the package via composer:
+Install the package via composer:
 
 ```bash
 composer require daikazu/robotstxt
 ```
-You can publish the config file with:
+
+Run the install command to set up the package:
 
 ```bash
-php artisan vendor:publish --tag="robotstxt-config"
+php artisan robots:install
 ```
 
-### Nginx Configuration (Required for Production)
+This command will:
+- Publish the config file (`config/robotstxt.php`)
+- Add `public/robots.txt` to your `.gitignore`
+- Add composer hooks to auto-generate on `composer install/update`
+- Generate the initial `robots.txt` file
 
-If you're getting a 404 status (but still seeing content), you need to configure Nginx to pass robots.txt requests to Laravel:
+That's it! No web server configuration required.
 
-**For Laravel Herd:**
-Add this to your site's Nginx config (via Herd UI or `~/.config/herd/Nginx/[site].conf`):
+## How It Works
 
-```nginx
-location = /robots.txt {
-      try_files $uri /index.php?$query_string;
-      access_log off;
-      log_not_found off;
-  }
+The package generates a static `public/robots.txt` file that is served directly by your web server (Nginx, Apache, etc.). This approach:
+
+- Works with all web servers without configuration
+- Provides better performance (no PHP execution per request)
+- Automatically regenerates in development when config changes
+- Regenerates on deployment via composer hooks
+
+### Development
+
+In non-production environments, the package automatically regenerates `public/robots.txt` when your config file changes.
+
+### Production
+
+In production, the file is regenerated automatically during `composer install` or `composer update`. You can also manually regenerate:
+
+```bash
+php artisan robots:generate
 ```
-
-**For Laravel Forge/Vapor:**
-Add the same location block to your Nginx configuration.
-
-**For custom servers:**
-Add to your server block in your Nginx config file.
-
-Then restart Nginx/Herd.
 
 ## Usage
 
-After installation, the package automatically registers a route at `/robots.txt` that serves your dynamically generated robots.txt file.
+After installation, your `public/robots.txt` file is automatically generated and maintained.
 
 ### Basic Configuration
 
