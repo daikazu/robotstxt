@@ -63,10 +63,32 @@ class InstallCommand extends Command
         }
 
         $content = File::get($gitignorePath);
+        $modified = false;
 
-        // Check if already present (with or without leading slash)
+        // Remove any bare robots.txt entries (without public/ path) that might conflict
+        $lines = explode("\n", $content);
+        $filteredLines = [];
+
+        foreach ($lines as $line) {
+            $trimmed = trim($line);
+            // Remove bare robots.txt entries (exact match, with or without leading slash)
+            if ($trimmed === 'robots.txt' || $trimmed === '/robots.txt') {
+                $this->line('Removed conflicting robots.txt entry from .gitignore.');
+                $modified = true;
+
+                continue;
+            }
+            $filteredLines[] = $line;
+        }
+
+        $content = implode("\n", $filteredLines);
+
+        // Check if our entry is already present (with or without leading slash)
         if (str_contains($content, 'public/robots.txt')) {
-            $this->line('.gitignore already contains robots.txt entry.');
+            if ($modified) {
+                File::put($gitignorePath, $content);
+            }
+            $this->line('.gitignore already contains public/robots.txt entry.');
 
             return;
         }
@@ -74,7 +96,7 @@ class InstallCommand extends Command
         // Append entry
         $content = rtrim($content) . PHP_EOL . $entry . PHP_EOL;
         File::put($gitignorePath, $content);
-        $this->line('Added robots.txt to .gitignore.');
+        $this->line('Added public/robots.txt to .gitignore.');
     }
 
     private function updateComposerJson(): void

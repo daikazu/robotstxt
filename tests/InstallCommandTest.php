@@ -67,3 +67,18 @@ it('generates robots.txt file', function (): void {
 
     expect(File::exists(public_path('robots.txt')))->toBeTrue();
 });
+
+it('removes bare robots.txt entries from gitignore', function (): void {
+    $gitignore = base_path('.gitignore');
+    $originalContent = File::exists($gitignore) ? File::get($gitignore) : '';
+
+    // Add a bare robots.txt entry
+    File::put($gitignore, $originalContent . "\nrobots.txt\n");
+
+    $this->artisan('robots:install')
+        ->assertSuccessful();
+
+    $content = File::get($gitignore);
+    expect($content)->not->toContain("\nrobots.txt\n")
+        ->and($content)->toContain('public/robots.txt');
+});
