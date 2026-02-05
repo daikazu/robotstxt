@@ -16,7 +16,6 @@ class RobotsTxtServiceProvider extends PackageServiceProvider
     {
         $package
             ->name('robotstxt')
-            ->hasRoute('web')
             ->hasConfigFile()
             ->hasCommand(GenerateCommand::class)
             ->hasCommand(InstallCommand::class);
