@@ -181,6 +181,15 @@ Disallow: /private
 Allow: /
 ```
 
+To opt an agent out of the global signals without setting any of its own, give it a `content_signals` block with every value set to `null`:
+
+```php
+'Bingbot' => [
+    'content_signals' => ['search' => null, 'ai_input' => null, 'ai_train' => null],
+    'allow' => ['/'],
+],
+```
+
 ### Host Directive
 
 Specify the preferred domain for crawlers:
@@ -214,7 +223,14 @@ TEXT,
 
 ### Environment-Specific Rules
 
-Define different rules for each environment:
+Define different rules for each environment. The current environment is read from `APP_ENV`. Any environment that isn't in the config (or has no `paths`) falls back to blocking all crawlers:
+
+```
+User-agent: *
+Disallow: /
+```
+
+So staging, local and preview environments stay out of search engines unless you configure them otherwise.
 
 ```php
 return [
@@ -334,7 +350,7 @@ Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed re
 
 ## Contributing
 
-Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
+Issues and pull requests are welcome on [GitHub](https://github.com/daikazu/robotstxt).
 
 ## Security Vulnerabilities
 
