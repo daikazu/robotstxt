@@ -2,6 +2,29 @@
 
 All notable changes to `robotstxt` will be documented in this file.
 
+## v1.3.0 - 2026-09-23
+
+### What's changed
+
+#### Laravel Boost support
+
+If your app uses [Laravel Boost](https://laravel.com/docs/boost), this package now ships:
+
+- **An AI guideline** (always loaded, short): where the config lives, why `public/robots.txt` must be deleted, the disallow-all fallback for unconfigured environments, and content signal values.
+- **A `robotstxt-configuration` skill** (loaded only when relevant): full config reference, how content signals are inherited and how to opt out, common tasks like blocking AI crawlers, and troubleshooting.
+
+Run `php artisan boost:install`, or `php artisan boost:update --discover` if Boost is already installed. The package doesn't require Boost.
+
+#### Docs
+
+- README now documents that environments not in the config fall back to `User-agent: *` / `Disallow: /`.
+- README now shows how to opt an agent out of global content signals (an all-`null` `content_signals` block).
+- Fixed the broken Contributing link.
+
+No changes to robots.txt output.
+
+**Full Changelog**: https://github.com/daikazu/robotstxt/compare/v1.2.0...v1.3.0
+
 ## v1.2.0 - 2026-09-23
 
 ### What's changed
