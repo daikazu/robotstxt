@@ -38,6 +38,14 @@ You can publish the config file with:
 php artisan vendor:publish --tag="robotstxt-config"
 ```
 
+### Remove the static `public/robots.txt` (Required)
+
+New Laravel applications ship with a static `public/robots.txt`. Web servers serve files in `public/` directly, so while that file exists, requests never reach Laravel and this package's output is never shown. Delete it:
+
+```bash
+rm public/robots.txt
+```
+
 ### Nginx Configuration (Required for Production)
 
 If you're getting a 404 status (but still seeing content), you need to configure Nginx to pass robots.txt requests to Laravel:
@@ -53,8 +61,11 @@ location = /robots.txt {
   }
 ```
 
-**For Laravel Forge/Vapor:**
-Add the same location block to your Nginx configuration.
+**For Laravel Forge:**
+Forge's default Nginx config includes a `location = /robots.txt` block that only serves the static file. Replace it with the block above.
+
+**For Laravel Vapor:**
+No Nginx changes are needed. Just make sure `public/robots.txt` is deleted, otherwise it is uploaded as a static asset and served from the CDN.
 
 **For custom servers:**
 Add to your server block in your Nginx config file.

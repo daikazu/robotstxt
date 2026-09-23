@@ -16,7 +16,7 @@ final class RobotsTextController extends Controller
 
     public function __invoke(): Response
     {
-        $robots = implode(PHP_EOL, $this->manager->build());
+        $robots = implode("\n", $this->manager->build());
 
         return response($robots, 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
     }
