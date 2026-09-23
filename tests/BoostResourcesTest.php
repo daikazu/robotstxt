@@ -18,9 +18,10 @@ it('ships Boost skills with valid frontmatter', function (): void {
     expect($skills)->not->toBeEmpty();
 
     foreach ($skills as $skill) {
-        $contents = file_get_contents($skill);
+        // Normalise CRLF (e.g. git checkouts on Windows) so line anchors match
+        $contents = str_replace("\r\n", "\n", file_get_contents($skill));
 
-        expect(preg_match('/\A---\R(.*?)\R---\R/s', $contents, $matches))->toBe(1, "Missing frontmatter in {$skill}");
+        expect(preg_match('/\A---\n(.*?)\n---\n/s', $contents, $matches))->toBe(1, "Missing frontmatter in {$skill}");
 
         $frontmatter = $matches[1];
 
