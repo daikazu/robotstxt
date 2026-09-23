@@ -167,7 +167,7 @@ final class RobotsTxtManager
 
         // Add custom text at the end
         if ($this->customText !== null) {
-            $customLines = explode("\n", $this->customText);
+            $customLines = $this->splitLines($this->customText);
 
             // Add blank line before custom text
             if ($output !== []) {
@@ -331,7 +331,7 @@ final class RobotsTxtManager
 # AND RELATED RIGHTS IN THE DIGITAL SINGLE MARKET.
 POLICY;
 
-        return explode("\n", $policy);
+        return $this->splitLines($policy);
     }
 
     /**
@@ -344,7 +344,7 @@ POLICY;
      */
     private function formatPolicyAsComments(string $policy): array
     {
-        $lines = explode("\n", $policy);
+        $lines = $this->splitLines($policy);
 
         return array_map(fn (string $line): string => '# ' . $line, $lines);
     }
@@ -393,5 +393,18 @@ POLICY;
         }
 
         return RobotsDirective::CONTENT_SIGNAL->format(implode(', ', $signals));
+    }
+
+    /**
+     * Split text into lines, accepting any line ending.
+     *
+     * Config files and this class may be checked out with CRLF endings (e.g. git on Windows),
+     * which would otherwise leave a trailing "\r" on every line.
+     *
+     * @return array<int, string>
+     */
+    private function splitLines(string $text): array
+    {
+        return preg_split('/\R/', $text) ?: [$text];
     }
 }
