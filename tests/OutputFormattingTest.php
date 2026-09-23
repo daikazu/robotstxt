@@ -61,9 +61,8 @@ it('does not fail on malformed config values', function (): void {
     expect($output)->toBe([
         'Sitemap: http://localhost/sitemap.xml',
         '',
-        'Content-Signal: ai-train=no',
-        '',
         'User-agent: *',
+        'Content-Signal: ai-train=no',
         'Disallow: /',
     ]);
 });

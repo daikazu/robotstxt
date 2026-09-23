@@ -155,17 +155,6 @@ final class RobotsTxtManager
             $output = [...$output, ...$this->getContentSignalPolicy()];
         }
 
-        // Add global content signals (only if at least one signal is set)
-        $globalSignalDirective = $this->getGlobalContentSignalDirective();
-        if ($globalSignalDirective !== null) {
-            // Add blank line before if we have content above
-            if ($output !== []) {
-                $output[] = '';
-            }
-
-            $output[] = $globalSignalDirective;
-        }
-
         // Add paths (user-agent blocks)
         $paths = $this->definedPaths !== [] ? $this->getPaths() : $this->defaultRobot();
 
@@ -198,10 +187,16 @@ final class RobotsTxtManager
      */
     private function defaultRobot(): array
     {
-        return [
-            RobotsDirective::USER_AGENT->format('*'),
-            RobotsDirective::DISALLOW->format('/'),
-        ];
+        $entries = [RobotsDirective::USER_AGENT->format('*')];
+
+        $contentSignalDirective = $this->getContentSignalDirectiveForAgent(null);
+        if ($contentSignalDirective !== null) {
+            $entries[] = $contentSignalDirective;
+        }
+
+        $entries[] = RobotsDirective::DISALLOW->format('/');
+
+        return $entries;
     }
 
     /**
@@ -294,43 +289,6 @@ final class RobotsTxtManager
     }
 
     /**
-     * Build the machine-readable Content-Signal directive for global signals.
-     *
-     * @return string|null The Content-Signal directive line, or null if no global signals configured
-     */
-    private function getGlobalContentSignalDirective(): ?string
-    {
-        if ($this->globalContentSignals === null) {
-            return null;
-        }
-
-        $signals = [];
-
-        foreach ($this->globalContentSignals as $key => $value) {
-            // Only include signals that are explicitly set (skips null and non-scalar values)
-            if (is_scalar($value)) {
-                // Convert underscore to hyphen (ai_input -> ai-input)
-                $signalName = str_replace('_', '-', (string) $key);
-
-                // Convert boolean true to 'yes', false to 'no'
-                $signalValue = match ($value) {
-                    true    => 'yes',
-                    false   => 'no',
-                    default => (string) $value,
-                };
-
-                $signals[] = $signalName . '=' . $signalValue;
-            }
-        }
-
-        if ($signals === []) {
-            return null;
-        }
-
-        return RobotsDirective::CONTENT_SIGNAL->format(implode(', ', $signals));
-    }
-
-    /**
      * Get the human-readable content signals policy comment block.
      *
      * Returns either a custom policy or the default Cloudflare Content Signals Policy.
@@ -394,23 +352,23 @@ POLICY;
     /**
      * Build the machine-readable Content-Signal directive for a specific agent.
      *
-     * Only uses per-agent signals if defined. Does NOT fall back to global signals.
+     * Per-agent signals replace the global signals entirely. Agents without their own
+     * signals inherit the global ones, since robots.txt rules outside a User-agent
+     * group are ignored by crawlers (RFC 9309).
      *
      * @param  mixed  $agentPaths  The paths configuration for this agent
      * @return string|null The Content-Signal directive line, or null if no signals configured
      */
     private function getContentSignalDirectiveForAgent(mixed $agentPaths): ?string
     {
-        if (! is_array($agentPaths)) {
+        $contentSignals = is_array($agentPaths) && is_array($agentPaths['content_signals'] ?? null)
+            ? $agentPaths['content_signals']
+            : $this->globalContentSignals;
+
+        if ($contentSignals === null) {
             return null;
         }
 
-        // Only use per-agent signals - do NOT fall back to global signals
-        if (! isset($agentPaths['content_signals']) || ! is_array($agentPaths['content_signals'])) {
-            return null;
-        }
-
-        $contentSignals = $agentPaths['content_signals'];
         $signals = [];
 
         foreach ($contentSignals as $key => $value) {

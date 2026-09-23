@@ -120,7 +120,7 @@ Control how AI crawlers and search engines use your content with Cloudflare's Co
         'custom_policy' => null, // or provide your own HEREDOC text
     ],
 
-    // Global content signals (applied at top level)
+    // Global content signals (added to every User-agent group without its own signals)
     'content_signals' => [
         'search'   => true,   // Allow search indexing
         'ai_input' => false,  // Block AI input/RAG
@@ -142,15 +142,14 @@ Generates:
 # content signals:
 # [Full policy text...]
 
-Content-Signal: search=yes, ai-input=no, ai-train=no
-
 User-agent: *
+Content-Signal: search=yes, ai-input=no, ai-train=no
 Allow: /
 ```
 
 ### Per-Agent Content Signals
 
-You can also define content signals for specific user agents:
+You can also define content signals for specific user agents. Per-agent signals replace the global signals for that agent; agents without their own signals inherit the global ones:
 
 ```php
 'paths' => [
@@ -170,11 +169,10 @@ You can also define content signals for specific user agents:
 ],
 ```
 
-Generates:
+Generates (with the global signals from the previous example):
 ```
-Content-Signal: search=yes, ai-input=no, ai-train=no
-
 User-agent: *
+Content-Signal: search=yes, ai-input=no, ai-train=no
 Allow: /
 
 User-agent: Googlebot

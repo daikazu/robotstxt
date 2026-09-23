@@ -6,7 +6,7 @@ beforeEach(function (): void {
     config()->set('app.env', 'testing');
 });
 
-it('renders global content signals at top level', function (): void {
+it('renders global content signals inside the user-agent group', function (): void {
     config()->set('robotstxt.environments.testing.paths', [
         '*' => [
             'disallow' => [],
@@ -23,24 +23,28 @@ it('renders global content signals at top level', function (): void {
     $manager = new RobotsTxtManager;
     $output = $manager->build();
 
-    // Global content signals should appear before user-agent blocks
-    $signalIndex = null;
-    $userAgentIndex = null;
+    // Rules outside a User-agent group are ignored by crawlers (RFC 9309)
+    expect($output)->toBe([
+        'User-agent: *',
+        'Content-Signal: search=yes, ai-input=no, ai-train=no',
+        'Allow: /',
+    ]);
+});
 
-    foreach ($output as $index => $line) {
-        if (str_starts_with($line, 'Content-Signal:')) {
-            $signalIndex = $index;
-        }
-        if (str_starts_with($line, 'User-agent:')) {
-            $userAgentIndex = $index;
-            break;
-        }
-    }
+it('applies global content signals to the default disallow-all group', function (): void {
+    config()->set('robotstxt.environments.testing.paths', []);
+    config()->set('robotstxt.environments.testing.sitemaps', []);
+    config()->set('robotstxt.environments.testing.content_signals', [
+        'ai_train' => 'no',
+    ]);
 
-    expect($signalIndex)->not->toBeNull()
-        ->and($userAgentIndex)->not->toBeNull()
-        ->and($signalIndex)->toBeLessThan($userAgentIndex)
-        ->and($output)->toContain('Content-Signal: search=yes, ai-input=no, ai-train=no');
+    $output = (new RobotsTxtManager)->build();
+
+    expect($output)->toBe([
+        'User-agent: *',
+        'Content-Signal: ai-train=no',
+        'Disallow: /',
+    ]);
 });
 
 it('uses per-agent content signals when specified', function (): void {
@@ -65,7 +69,7 @@ it('uses per-agent content signals when specified', function (): void {
         ->and($output)->toContain('Allow: /');
 });
 
-it('global and per-agent signals are independent', function (): void {
+it('per-agent signals override global signals and other agents inherit global', function (): void {
     config()->set('robotstxt.environments.testing.paths', [
         '*' => [
             'content_signals' => [
@@ -80,6 +84,14 @@ it('global and per-agent signals are independent', function (): void {
             'disallow' => [],
             'allow'    => ['/'],
         ],
+        'Bingbot' => [
+            'content_signals' => [
+                'search'   => null,
+                'ai_input' => null,
+                'ai_train' => null,
+            ],
+            'allow' => ['/'],
+        ],
     ]);
     config()->set('robotstxt.environments.testing.sitemaps', []);
     config()->set('robotstxt.environments.testing.content_signals', [
@@ -91,37 +103,19 @@ it('global and per-agent signals are independent', function (): void {
     $manager = new RobotsTxtManager;
     $output = $manager->build();
 
-    // Global signals should appear at the top
-    expect($output)->toContain('Content-Signal: search=no, ai-input=no, ai-train=yes');
-
-    // First agent has per-agent signals (appears after User-agent: *)
-    $starIndex = array_search('User-agent: *', $output);
-    $foundPerAgentSignal = false;
-    for ($i = $starIndex + 1; $i < count($output); $i++) {
-        if (str_starts_with($output[$i], 'Content-Signal:')) {
-            expect($output[$i])->toBe('Content-Signal: search=yes, ai-input=yes, ai-train=no');
-            $foundPerAgentSignal = true;
-            break;
-        }
-        if (str_starts_with($output[$i], 'User-agent:')) {
-            break;
-        }
-    }
-    expect($foundPerAgentSignal)->toBeTrue();
-
-    // Second agent (Googlebot) should NOT have any content signals
-    $googlebotIndex = array_search('User-agent: Googlebot', $output);
-    $foundGooglebotSignal = false;
-    for ($i = $googlebotIndex + 1; $i < count($output); $i++) {
-        if (str_starts_with($output[$i], 'Content-Signal:')) {
-            $foundGooglebotSignal = true;
-            break;
-        }
-        if (str_starts_with($output[$i], 'User-agent:')) {
-            break;
-        }
-    }
-    expect($foundGooglebotSignal)->toBeFalse();
+    expect($output)->toBe([
+        'User-agent: *',
+        'Content-Signal: search=yes, ai-input=yes, ai-train=no',
+        'Allow: /',
+        '',
+        'User-agent: Googlebot',
+        'Content-Signal: search=no, ai-input=no, ai-train=yes',
+        'Allow: /',
+        '',
+        // An explicit all-null block opts the agent out of the global signals
+        'User-agent: Bingbot',
+        'Allow: /',
+    ]);
 });
 
 it('shows policy before global content signals when enabled', function (): void {
