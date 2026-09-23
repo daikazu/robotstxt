@@ -334,6 +334,16 @@ TEXT,
 ];
 ```
 
+## Laravel Boost
+
+If your application uses [Laravel Boost](https://laravel.com/docs/boost), this package ships an AI guideline and a `robotstxt-configuration` skill, so your coding agent knows how to configure robots.txt correctly. They're picked up when you run:
+
+```bash
+php artisan boost:install
+```
+
+If Boost is already installed, run `php artisan boost:update --discover` to add them.
+
 ## Testing
 
 ```bash
