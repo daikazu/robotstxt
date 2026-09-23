@@ -14,28 +14,25 @@ final class RobotsTxtManager
      * @noinspection PhpPropertyOnlyWrittenInspection
      */
     private string $currentEnvironment {
-        /** @return non-empty-string */
         get {
             $env = config('app.env');
-            assert(is_string($env) && $env !== '');
 
-            return $env;
+            return is_string($env) ? $env : '';
         }
     }
 
     /**
      * @readonly
      *
-     * @var array<string, array<string, mixed>>
+     * @var array<array-key, mixed>
      *
      * @noinspection PhpPropertyOnlyWrittenInspection
      */
     private array $definedPaths {
         get {
-            /** @var array<string, array<string, mixed>> */
             $paths = config("robotstxt.environments.{$this->currentEnvironment}.paths", []);
 
-            return $paths;
+            return is_array($paths) ? $paths : [];
         }
     }
 
@@ -48,10 +45,10 @@ final class RobotsTxtManager
      */
     private array $definedSitemaps {
         get {
-            /** @var array<int, string> */
-            $sitemaps = config("robotstxt.environments.{$this->currentEnvironment}.sitemaps", []);
+            // Tolerate a single string and ignore non-string entries
+            $sitemaps = (array) config("robotstxt.environments.{$this->currentEnvironment}.sitemaps", []);
 
-            return $sitemaps;
+            return array_values(array_filter($sitemaps, is_string(...)));
         }
     }
 
@@ -63,9 +60,9 @@ final class RobotsTxtManager
     private bool $contentSignalsPolicyEnabled {
         get {
             $enabled = config("robotstxt.environments.{$this->currentEnvironment}.content_signals_policy.enabled", false);
-            assert(is_bool($enabled));
 
-            return $enabled;
+            // Accept loose values like 1, "true" or "on" (e.g. from env()) instead of failing the request
+            return filter_var($enabled, FILTER_VALIDATE_BOOL);
         }
     }
 
@@ -98,16 +95,15 @@ final class RobotsTxtManager
     /**
      * @readonly
      *
-     * @var array<string, bool|string|null>|null
+     * @var array<array-key, mixed>|null
      *
      * @noinspection PhpPropertyOnlyWrittenInspection
      */
     private ?array $globalContentSignals {
         get {
-            /** @var array<string, bool|string|null>|null */
             $signals = config("robotstxt.environments.{$this->currentEnvironment}.content_signals");
 
-            return $signals;
+            return is_array($signals) ? $signals : null;
         }
     }
 
@@ -311,17 +307,16 @@ final class RobotsTxtManager
         $signals = [];
 
         foreach ($this->globalContentSignals as $key => $value) {
-            // Only include signals that are explicitly set (not null)
-            if ($value !== null) {
+            // Only include signals that are explicitly set (skips null and non-scalar values)
+            if (is_scalar($value)) {
                 // Convert underscore to hyphen (ai_input -> ai-input)
-                $signalName = str_replace('_', '-', $key);
+                $signalName = str_replace('_', '-', (string) $key);
 
                 // Convert boolean true to 'yes', false to 'no'
-                /** @var string $signalValue */
                 $signalValue = match ($value) {
                     true    => 'yes',
                     false   => 'no',
-                    default => $value,
+                    default => (string) $value,
                 };
 
                 $signals[] = $signalName . '=' . $signalValue;
@@ -419,17 +414,16 @@ POLICY;
         $signals = [];
 
         foreach ($contentSignals as $key => $value) {
-            // Only include signals that are explicitly set (not null)
-            if ($value !== null) {
+            // Only include signals that are explicitly set (skips null and non-scalar values)
+            if (is_scalar($value)) {
                 // Convert underscore to hyphen (ai_input -> ai-input)
                 $signalName = str_replace('_', '-', (string) $key);
 
                 // Convert boolean true to 'yes', false to 'no'
-                /** @var string $signalValue */
                 $signalValue = match ($value) {
                     true    => 'yes',
                     false   => 'no',
-                    default => $value,
+                    default => (string) $value,
                 };
 
                 $signals[] = $signalName . '=' . $signalValue;
