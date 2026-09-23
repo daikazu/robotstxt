@@ -22,7 +22,7 @@ return [
             'paths' => [
                 '*' => [
                     'disallow' => [],
-                    'allow'    => [],
+                    'allow'    => ['/'],
                 ],
             ],
             'sitemaps' => [

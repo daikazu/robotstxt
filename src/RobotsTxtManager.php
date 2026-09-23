@@ -159,18 +159,15 @@ final class RobotsTxtManager
             $output = [...$output, ...$this->getContentSignalPolicy()];
         }
 
-        // Add global content signals (if defined)
-        if ($this->globalContentSignals !== null) {
+        // Add global content signals (only if at least one signal is set)
+        $globalSignalDirective = $this->getGlobalContentSignalDirective();
+        if ($globalSignalDirective !== null) {
             // Add blank line before if we have content above
             if ($output !== []) {
                 $output[] = '';
             }
 
-            // Add the global Content-Signal directive
-            $globalSignalDirective = $this->getGlobalContentSignalDirective();
-            if ($globalSignalDirective !== null) {
-                $output[] = $globalSignalDirective;
-            }
+            $output[] = $globalSignalDirective;
         }
 
         // Add paths (user-agent blocks)
