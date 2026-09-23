@@ -38,6 +38,14 @@ You can publish the config file with:
 php artisan vendor:publish --tag="robotstxt-config"
 ```
 
+### Remove the static `public/robots.txt` (Required)
+
+New Laravel applications ship with a static `public/robots.txt`. Web servers serve files in `public/` directly, so while that file exists, requests never reach Laravel and this package's output is never shown. Delete it:
+
+```bash
+rm public/robots.txt
+```
+
 ### Nginx Configuration (Required for Production)
 
 If you're getting a 404 status (but still seeing content), you need to configure Nginx to pass robots.txt requests to Laravel:
@@ -53,8 +61,11 @@ location = /robots.txt {
   }
 ```
 
-**For Laravel Forge/Vapor:**
-Add the same location block to your Nginx configuration.
+**For Laravel Forge:**
+Forge's default Nginx config includes a `location = /robots.txt` block that only serves the static file. Replace it with the block above.
+
+**For Laravel Vapor:**
+No Nginx changes are needed. Just make sure `public/robots.txt` is deleted, otherwise it is uploaded as a static asset and served from the CDN.
 
 **For custom servers:**
 Add to your server block in your Nginx config file.
@@ -109,7 +120,7 @@ Control how AI crawlers and search engines use your content with Cloudflare's Co
         'custom_policy' => null, // or provide your own HEREDOC text
     ],
 
-    // Global content signals (applied at top level)
+    // Global content signals (added to every User-agent group without its own signals)
     'content_signals' => [
         'search'   => true,   // Allow search indexing
         'ai_input' => false,  // Block AI input/RAG
@@ -131,15 +142,14 @@ Generates:
 # content signals:
 # [Full policy text...]
 
-Content-Signal: search=yes, ai-input=no, ai-train=no
-
 User-agent: *
+Content-Signal: search=yes, ai-input=no, ai-train=no
 Allow: /
 ```
 
 ### Per-Agent Content Signals
 
-You can also define content signals for specific user agents:
+You can also define content signals for specific user agents. Per-agent signals replace the global signals for that agent; agents without their own signals inherit the global ones:
 
 ```php
 'paths' => [
@@ -159,11 +169,10 @@ You can also define content signals for specific user agents:
 ],
 ```
 
-Generates:
+Generates (with the global signals from the previous example):
 ```
-Content-Signal: search=yes, ai-input=no, ai-train=no
-
 User-agent: *
+Content-Signal: search=yes, ai-input=no, ai-train=no
 Allow: /
 
 User-agent: Googlebot

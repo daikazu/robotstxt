@@ -139,3 +139,28 @@ it('adds blank line before custom text', function (): void {
         ->and($blankIndex)->toBe($allowIndex + 1)
         ->and($customIndex)->toBe($blankIndex + 1);
 });
+
+it('handles CRLF line endings in custom text and custom policy', function (): void {
+    config()->set('robotstxt.environments.testing.paths', [
+        '*' => ['allow' => ['/']],
+    ]);
+    config()->set('robotstxt.environments.testing.sitemaps', []);
+    config()->set('robotstxt.environments.testing.content_signals_policy', [
+        'enabled'       => true,
+        'custom_policy' => "Policy line 1\r\nPolicy line 2",
+    ]);
+    config()->set('robotstxt.environments.testing.custom_text', "# Line 1\r\n# Line 2");
+
+    $output = (new RobotsTxtManager)->build();
+
+    expect($output)->toBe([
+        '# Policy line 1',
+        '# Policy line 2',
+        '',
+        'User-agent: *',
+        'Allow: /',
+        '',
+        '# Line 1',
+        '# Line 2',
+    ]);
+});

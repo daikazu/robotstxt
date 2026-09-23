@@ -12,7 +12,7 @@ return [
                 // If null, uses the default Cloudflare Content Signals Policy
                 'custom_policy' => null,
             ],
-            // Global Content Signals (applied to all user-agents unless overridden per-agent)
+            // Global Content Signals (added to every User-agent group unless overridden per-agent)
             // Set to null to disable global signals
             'content_signals' => [
                 'search'   => null,    // Building a search index and providing search results
@@ -22,7 +22,7 @@ return [
             'paths' => [
                 '*' => [
                     'disallow' => [],
-                    'allow'    => [],
+                    'allow'    => ['/'],
                 ],
             ],
             'sitemaps' => [

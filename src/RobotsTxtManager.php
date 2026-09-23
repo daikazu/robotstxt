@@ -14,28 +14,25 @@ final class RobotsTxtManager
      * @noinspection PhpPropertyOnlyWrittenInspection
      */
     private string $currentEnvironment {
-        /** @return non-empty-string */
         get {
             $env = config('app.env');
-            assert(is_string($env) && $env !== '');
 
-            return $env;
+            return is_string($env) ? $env : '';
         }
     }
 
     /**
      * @readonly
      *
-     * @var array<string, array<string, mixed>>
+     * @var array<array-key, mixed>
      *
      * @noinspection PhpPropertyOnlyWrittenInspection
      */
     private array $definedPaths {
         get {
-            /** @var array<string, array<string, mixed>> */
             $paths = config("robotstxt.environments.{$this->currentEnvironment}.paths", []);
 
-            return $paths;
+            return is_array($paths) ? $paths : [];
         }
     }
 
@@ -48,10 +45,10 @@ final class RobotsTxtManager
      */
     private array $definedSitemaps {
         get {
-            /** @var array<int, string> */
-            $sitemaps = config("robotstxt.environments.{$this->currentEnvironment}.sitemaps", []);
+            // Tolerate a single string and ignore non-string entries
+            $sitemaps = (array) config("robotstxt.environments.{$this->currentEnvironment}.sitemaps", []);
 
-            return $sitemaps;
+            return array_values(array_filter($sitemaps, is_string(...)));
         }
     }
 
@@ -63,9 +60,9 @@ final class RobotsTxtManager
     private bool $contentSignalsPolicyEnabled {
         get {
             $enabled = config("robotstxt.environments.{$this->currentEnvironment}.content_signals_policy.enabled", false);
-            assert(is_bool($enabled));
 
-            return $enabled;
+            // Accept loose values like 1, "true" or "on" (e.g. from env()) instead of failing the request
+            return filter_var($enabled, FILTER_VALIDATE_BOOL);
         }
     }
 
@@ -98,16 +95,15 @@ final class RobotsTxtManager
     /**
      * @readonly
      *
-     * @var array<string, bool|string|null>|null
+     * @var array<array-key, mixed>|null
      *
      * @noinspection PhpPropertyOnlyWrittenInspection
      */
     private ?array $globalContentSignals {
         get {
-            /** @var array<string, bool|string|null>|null */
             $signals = config("robotstxt.environments.{$this->currentEnvironment}.content_signals");
 
-            return $signals;
+            return is_array($signals) ? $signals : null;
         }
     }
 
@@ -159,20 +155,6 @@ final class RobotsTxtManager
             $output = [...$output, ...$this->getContentSignalPolicy()];
         }
 
-        // Add global content signals (if defined)
-        if ($this->globalContentSignals !== null) {
-            // Add blank line before if we have content above
-            if ($output !== []) {
-                $output[] = '';
-            }
-
-            // Add the global Content-Signal directive
-            $globalSignalDirective = $this->getGlobalContentSignalDirective();
-            if ($globalSignalDirective !== null) {
-                $output[] = $globalSignalDirective;
-            }
-        }
-
         // Add paths (user-agent blocks)
         $paths = $this->definedPaths !== [] ? $this->getPaths() : $this->defaultRobot();
 
@@ -185,7 +167,7 @@ final class RobotsTxtManager
 
         // Add custom text at the end
         if ($this->customText !== null) {
-            $customLines = explode("\n", $this->customText);
+            $customLines = $this->splitLines($this->customText);
 
             // Add blank line before custom text
             if ($output !== []) {
@@ -205,10 +187,16 @@ final class RobotsTxtManager
      */
     private function defaultRobot(): array
     {
-        return [
-            RobotsDirective::USER_AGENT->format('*'),
-            RobotsDirective::DISALLOW->format('/'),
-        ];
+        $entries = [RobotsDirective::USER_AGENT->format('*')];
+
+        $contentSignalDirective = $this->getContentSignalDirectiveForAgent(null);
+        if ($contentSignalDirective !== null) {
+            $entries[] = $contentSignalDirective;
+        }
+
+        $entries[] = RobotsDirective::DISALLOW->format('/');
+
+        return $entries;
     }
 
     /**
@@ -301,44 +289,6 @@ final class RobotsTxtManager
     }
 
     /**
-     * Build the machine-readable Content-Signal directive for global signals.
-     *
-     * @return string|null The Content-Signal directive line, or null if no global signals configured
-     */
-    private function getGlobalContentSignalDirective(): ?string
-    {
-        if ($this->globalContentSignals === null) {
-            return null;
-        }
-
-        $signals = [];
-
-        foreach ($this->globalContentSignals as $key => $value) {
-            // Only include signals that are explicitly set (not null)
-            if ($value !== null) {
-                // Convert underscore to hyphen (ai_input -> ai-input)
-                $signalName = str_replace('_', '-', $key);
-
-                // Convert boolean true to 'yes', false to 'no'
-                /** @var string $signalValue */
-                $signalValue = match ($value) {
-                    true    => 'yes',
-                    false   => 'no',
-                    default => $value,
-                };
-
-                $signals[] = $signalName . '=' . $signalValue;
-            }
-        }
-
-        if ($signals === []) {
-            return null;
-        }
-
-        return RobotsDirective::CONTENT_SIGNAL->format(implode(', ', $signals));
-    }
-
-    /**
      * Get the human-readable content signals policy comment block.
      *
      * Returns either a custom policy or the default Cloudflare Content Signals Policy.
@@ -381,7 +331,7 @@ final class RobotsTxtManager
 # AND RELATED RIGHTS IN THE DIGITAL SINGLE MARKET.
 POLICY;
 
-        return explode("\n", $policy);
+        return $this->splitLines($policy);
     }
 
     /**
@@ -394,7 +344,7 @@ POLICY;
      */
     private function formatPolicyAsComments(string $policy): array
     {
-        $lines = explode("\n", $policy);
+        $lines = $this->splitLines($policy);
 
         return array_map(fn (string $line): string => '# ' . $line, $lines);
     }
@@ -402,37 +352,36 @@ POLICY;
     /**
      * Build the machine-readable Content-Signal directive for a specific agent.
      *
-     * Only uses per-agent signals if defined. Does NOT fall back to global signals.
+     * Per-agent signals replace the global signals entirely. Agents without their own
+     * signals inherit the global ones, since robots.txt rules outside a User-agent
+     * group are ignored by crawlers (RFC 9309).
      *
      * @param  mixed  $agentPaths  The paths configuration for this agent
      * @return string|null The Content-Signal directive line, or null if no signals configured
      */
     private function getContentSignalDirectiveForAgent(mixed $agentPaths): ?string
     {
-        if (! is_array($agentPaths)) {
+        $contentSignals = is_array($agentPaths) && is_array($agentPaths['content_signals'] ?? null)
+            ? $agentPaths['content_signals']
+            : $this->globalContentSignals;
+
+        if ($contentSignals === null) {
             return null;
         }
 
-        // Only use per-agent signals - do NOT fall back to global signals
-        if (! isset($agentPaths['content_signals']) || ! is_array($agentPaths['content_signals'])) {
-            return null;
-        }
-
-        $contentSignals = $agentPaths['content_signals'];
         $signals = [];
 
         foreach ($contentSignals as $key => $value) {
-            // Only include signals that are explicitly set (not null)
-            if ($value !== null) {
+            // Only include signals that are explicitly set (skips null and non-scalar values)
+            if (is_scalar($value)) {
                 // Convert underscore to hyphen (ai_input -> ai-input)
                 $signalName = str_replace('_', '-', (string) $key);
 
                 // Convert boolean true to 'yes', false to 'no'
-                /** @var string $signalValue */
                 $signalValue = match ($value) {
                     true    => 'yes',
                     false   => 'no',
-                    default => $value,
+                    default => (string) $value,
                 };
 
                 $signals[] = $signalName . '=' . $signalValue;
@@ -444,5 +393,18 @@ POLICY;
         }
 
         return RobotsDirective::CONTENT_SIGNAL->format(implode(', ', $signals));
+    }
+
+    /**
+     * Split text into lines, accepting any line ending.
+     *
+     * Config files and this class may be checked out with CRLF endings (e.g. git on Windows),
+     * which would otherwise leave a trailing "\r" on every line.
+     *
+     * @return array<int, string>
+     */
+    private function splitLines(string $text): array
+    {
+        return preg_split('/\R/', $text) ?: [$text];
     }
 }
